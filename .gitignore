@@ -1,0 +1,7 @@
+*.mp4
+*.zip
+node_modules/
+__pycache__/
+.DS_Store
+Thumbs.db
+

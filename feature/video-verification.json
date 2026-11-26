@@ -1,0 +1,90 @@
+{
+  "file": "transformer-4min-1440p60.mp4",
+  "decodedFrames": [
+    {
+      "frame": 5730,
+      "timestamp": 95.500833,
+      "file": "frames/video-5730.png"
+    },
+    {
+      "frame": 6792,
+      "timestamp": 113.200833,
+      "file": "frames/video-6792.png"
+    },
+    {
+      "frame": 7896,
+      "timestamp": 131.600833,
+      "file": "frames/video-7896.png"
+    },
+    {
+      "frame": 10338,
+      "timestamp": 172.300833,
+      "file": "frames/video-10338.png"
+    },
+    {
+      "frame": 12864,
+      "timestamp": 214.400833,
+      "file": "frames/video-12864.png"
+    },
+    {
+      "frame": 13968,
+      "timestamp": 232.800833,
+      "file": "frames/video-13968.png"
+    }
+  ],
+  "errors": [],
+  "metadata": {
+    "width": 2560,
+    "height": 1440,
+    "duration": 240
+  },
+  "index": {
+    "duration": 240,
+    "video": {
+      "frames": 14400,
+      "fps": 60,
+      "constantFrameDuration": 1500,
+      "mediaTimescale": 90000,
+      "width": 2560,
+      "height": 1440
+    },
+    "audio": {
+      "packets": 11250,
+      "sampleRate": 48000,
+      "durationPerPacket": 1024,
+      "bytes": 4826129
+    }
+  },
+  "adjacentMotionFrames": [
+    {
+      "frame": 5226,
+      "seconds": 87.100833,
+      "sha256": "bab9bfc5db91efc825e43a844d3ef32bf5b3ea981ffcb074fc18bfabca429e36"
+    },
+    {
+      "frame": 5227,
+      "seconds": 87.1175,
+      "sha256": "0c179f63b4e837926b63f6108e3f826044de959a855dfd65c0a3a37aa4802b38"
+    },
+    {
+      "frame": 5228,
+      "seconds": 87.134166,
+      "sha256": "9d1d6aa00fc6899fd332270bc9f630854568b30cc8fc17ea5178c67e11a74878"
+    },
+    {
+      "frame": 5229,
+      "seconds": 87.150833,
+      "sha256": "9ae832741d635d043e02635c7be77283ed36a2389a8292311a1a794fd2edb534"
+    },
+    {
+      "frame": 5230,
+      "seconds": 87.1675,
+      "sha256": "309c46805dc439eecf788e8a0495686888572f29cd19439791cfccda75c6d9fe"
+    },
+    {
+      "frame": 5231,
+      "seconds": 87.184166,
+      "sha256": "87bb1c1bfdf912fd976d4d0a98f20189ac1f2d691cb74abcab0ed1329ef9f704"
+    }
+  ]
+}

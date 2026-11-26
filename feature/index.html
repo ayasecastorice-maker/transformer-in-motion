@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>字间 · Transformer</title>
+<style>
+:root { color-scheme:light; font:15px/1.4 "Segoe UI","Microsoft YaHei",sans-serif; color:#252520; background:#e9e7df; }
+* { box-sizing:border-box; }
+body { margin:0; min-height:100svh; display:grid; align-content:center; justify-items:center; }
+main { width:min(100vw,calc((100svh - 74px)*16/9)); }
+canvas { width:100%; height:auto; display:block; aspect-ratio:16/9; }
+.controls { display:flex; width:min(100%,1050px); padding:12px 20px; gap:13px; flex-wrap:wrap; align-items:center; justify-content:center; }
+button,select { color:inherit; font:inherit; cursor:pointer; background:transparent; border:1px solid #928e82; border-radius:0; padding:6px 12px; }
+button:focus-visible,select:focus-visible,input:focus-visible { outline:2px solid #943a33; outline-offset:2px; }
+#scrub { flex:1; min-width:65px; accent-color:#292823; }
+#clock { font:13px Consolas,monospace; }
+.sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+body.export { display:block; min-height:0; }
+.export main { width:100vw; }
+.export .controls { display:none; }
+@media(max-width:680px){.controls{padding:8px;gap:6px}button,select{font-size:12px;padding:5px 7px}#clock{font-size:10px}main{width:100vw}}
+</style>
+</head>
+<body>
+<main><h1 class="sr">字间，从自注意力到 Transformer</h1><canvas id="film" width="1600" height="900" aria-label="字间，中文 Transformer 动画，从注意力点积到分块计算与解码器"></canvas></main>
+<div class="controls" aria-label="影片播放">
+<button id="play" type="button">播放</button><input id="scrub" type="range" min="0" value="0" step="1" aria-label="影片进度">
+<span id="clock"></span><select id="chapter" aria-label="选择镜头"></select>
+<button id="sound" type="button" aria-pressed="true">声音开</button><button id="full" type="button">全屏</button>
+</div>
+<audio id="score" preload="auto" src="score.wav"></audio>
+<script src="timeline.js"></script><script src="plates.js"></script><script src="atlas.js"></script>
+<script src="attention.js"></script><script src="attention-lab.js"></script><script src="flash.js"></script>
+<script src="rope.js"></script><script src="linear.js"></script><script src="inference.js"></script>
+<script src="architecture.js"></script><script src="player.js"></script>
+</body></html>

@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transformer · 从注意力到整机</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;min-height:100svh;background:#080a0d;color:#e8e9eb;display:flex;flex-direction:column;justify-content:center;align-items:center;font:15px/1.4 system-ui,"Microsoft YaHei",sans-serif}main{width:min(100%,calc((100svh - 86px)*1.77778));margin:auto}canvas{display:block;width:100%;height:auto;aspect-ratio:16/9}.controls{width:min(1060px,96vw);display:flex;align-items:center;justify-content:center;gap:16px;padding:16px 20px 22px;margin:0 auto}button{border:1px solid #4b515d;background:#171a20;border-radius:20px;padding:8px 15px;cursor:pointer;color:inherit;font:inherit;white-space:nowrap}button:hover{background:#282e37}button:focus-visible,input:focus-visible{outline:2px solid #a0d6fc;outline-offset:4px}#scrub{flex:1;min-width:30px;accent-color:#b5dfff}#clock{white-space:nowrap;font:12px Consolas,monospace;color:#c4cad1}select{background:#171a20;color:#eee;border:1px solid #4b515d;font:inherit;border-radius:8px;padding:7px}.export main{width:100vw;margin:0}.export .controls{display:none}.export{min-height:0}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}@media(max-width:600px){.controls{gap:7px;padding:12px 2px}button,select{font-size:12px;padding:6px 8px}#clock{font-size:10px}}
+</style></head>
+<body><main><h1 class="sr">Transformer 动画，从自注意力到前馈网络，再到编码器和解码器</h1><canvas id="film" width="1600" height="900" aria-label="四幕动态图解。使用下方按钮暂停、调节进度或选择章节。"></canvas></main>
+<div class="controls" role="group" aria-label="动画播放"><button id="play" aria-label="播放或暂停">播放</button><input id="scrub" aria-label="视频进度" type="range" min="0" max="1079" step="1" value="0"><span id="clock"></span><select aria-label="跳到章节" id="chapters"><option value="0">自注意力</option><option value="300">前馈网络</option><option value="570">编码器层</option><option value="840">Transformer 全貌</option></select><button id="full" aria-label="全屏">全屏</button></div>
+<script>
+'use strict';
+const canvas=document.getElementById('film'), g=canvas.getContext('2d',{alpha:false});
+const exporting=new URLSearchParams(location.search).has('export');
+if(exporting)document.body.classList.add('export');
+const sans='"Segoe UI",Arial,"Microsoft YaHei",sans-serif',cn='"Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif';
+const W=1600,H=900,TAU=Math.PI*2;
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+function ease(x){x=clamp(x);return x*x*(3-2*x)}
+function phase(t,a,b){return ease((t-a)/(b-a))}
+function mix(a,b,x){return a+(b-a)*x}
+function rgba(c,a){return 'rgba('+c.join(',')+','+clamp(a)+')'}
+function blend(a,b,x){return a.map((n,i)=>Math.round(mix(n,b[i],x)))}
+const blue=[99,183,255],ice=[164,226,255],purple=[174,137,255],peach=[255,192,158],mint=[127,224,220];
+function type(str,x,y,size,color='#ecf0f4',weight=400,align='left',font=sans){
+  g.font=weight+' '+size+'px '+font;g.fillStyle=color;g.textAlign=align;g.textBaseline='alphabetic';g.fillText(str,x,y)
+}
+function line(x1,y1,x2,y2,color,w=1){g.beginPath();g.moveTo(x1,y1);g.lineTo(x2,y2);g.strokeStyle=color;g.lineWidth=w;g.stroke()}
+function glow(x,y,rx,ry,col,alpha){g.save();g.translate(x,y);g.scale(rx,ry);const light=g.createRadialGradient(0,0,0,0,0,1);light.addColorStop(0,rgba(col,alpha));light.addColorStop(.45,rgba(col,alpha*.44));light.addColorStop(1,rgba(col,0));g.fillStyle=light;g.fillRect(-1,-1,2,2);g.restore()}
+function disk(x,y,r,color){g.fillStyle=color;g.beginPath();g.arc(x,y,r,0,TAU);g.fill()}
+function curve(points,color,w){g.strokeStyle=color;g.lineWidth=w;g.beginPath();g.moveTo(points[0][0],points[0][1]);for(let i=1;i<points.length;i++)g.lineTo(points[i][0],points[i][1]);g.stroke()}
+function polygon(points,fill,edge,w=1){g.beginPath();g.moveTo(...points[0]);for(let i=1;i<points.length;i++)g.lineTo(...points[i]);g.closePath();if(fill){g.fillStyle=fill;g.fill()}if(edge){g.strokeStyle=edge;g.lineWidth=w;g.stroke()}}
+function gradient(x,y,x2,y2,stops){const a=g.createLinearGradient(x,y,x2,y2);for(const [p,v] of stops)a.addColorStop(p,v);return a}
+function ellipse(x,y,rx,ry,col,w){g.beginPath();g.ellipse(x,y,rx,ry,0,0,TAU);g.strokeStyle=col;g.lineWidth=w;g.stroke()}
+function bg(col,t){g.fillStyle='#090b0f';g.fillRect(0,0,W,H);glow(1160,410,720,490,col,.099);glow(820+8*Math.sin(t*.23),795,850,200,[77,94,122],.038)}
+const scenes=[
+ {zh:'自注意力',en:'Attention',title:['一个词，','该看向谁？'],copy:['让「坐在」的查询 Q 对照每个键 K。','权重越大，对应的值 V 贡献越多。'],formula:'softmax(QKᵀ / √dₖ) V',accent:ice},
+ {zh:'前馈网络',en:'Feedforward',title:['在一个位置，','展开特征。'],copy:['把刚刚汇合的表示升维，经过非线性激活，','再投影回原来的宽度。每个位置共用同一组权重。'],formula:'FFN(x) = ReLU(xW₁ + b₁)W₂ + b₂',accent:purple},
+ {zh:'编码器层',en:'Encoder block',title:['把两个操作，','接成一层。'],copy:['先用多头注意力交换信息，再逐位置做前馈变换。','每个子层都有残差连接与层归一化。'],formula:'Add & Norm = LN(x + Sublayer(x))',accent:mint},
+ {zh:'整机结构',en:'Transformer',title:['读入一句话，','逐词写出。'],copy:['编码器读完整输入。解码器结合已生成的词，','再通过交叉注意力读取编码结果，预测下一个词。'],formula:'P(next token | prefix, encoder memory)',accent:peach}];
+const sections=[0,10,19,28,36];
+function header(i){
+ type('Transformer',78,70,23,'#eef0f3',640);line(222,49,222,73,'#50555d');type('架构图解',245,68,17,'#a1a8b2',450,'left',cn);
+ const names=['Attention','FFN','Block','Transformer'];let x=1030;for(let k=0;k<4;k++){let size=[113,75,80,172][k];disk(x+4,62,k===i?3.5:2,k===i?rgba(scenes[i].accent,1):'#444950');type(names[k],x+15,68,15,k===i?'#e7edf4':'#848b98',k===i?600:400);x+=size}
+}
+function editorial(i,t){
+ const sc=scenes[i],fade=.72+.28*phase(t,0,.6),offset=17*(1-phase(t,0,.85));g.save();g.globalAlpha*=fade;g.translate(0,offset);
+ line(80,214,113,214,rgba(sc.accent,.95),2);type(sc.zh,128,221,22,rgba(sc.accent,.98),500,'left',cn);
+ type(sc.en,74,321,i===2?69:i===1?77:84,'#f5f6f8',620);
+ type(sc.title[0],78,419,53,'#f2f3f7',650,'left',cn);type(sc.title[1],78,492,53,'#f2f3f7',650,'left',cn);
+ sc.copy.forEach((s,n)=>type(s,81,558+34*n,20,'#b9bfc9',400,'left',cn));
+ line(82,648,115,648,'#59616e',1.5);type(sc.formula,130,655,i===1||i===2||i===3?20:23,rgba(sc.accent,.83),400);
+ g.restore();
+}
+const captions=[
+ [[0,'把句子拆成四个位置，选中「坐在」。'],[2.8,'Q 与各位置的 K 匹配，softmax 把分数换成权重。'],[6.0,'这一头给「垫子」45.5% 的权重，再把四个 V 加权相加。']],
+ [[0,'注意力把上下文带到了当前位置。'],[2.1,'第一层把 512 维投影到 2048 维，ReLU 保留正响应。'],[5.9,'第二层投影回 512 维，同样的变换也作用于其他位置。']],
+ [[0,'缩小视角，就能看到完整的编码器层。'],[2.2,'输入经旁路与子层输出相加，再进行层归一化。'],[5.6,'先注意力，再前馈。原始 Transformer 将这种编码器层堆叠六次。']],
+ [[0,'输入词和位置信息进入编码器，右移的目标词进入解码器。'],[2.5,'解码器先做因果自注意力，再以自己的 Q 读取编码器给出的 K、V。'],[5.7,'解码器的输出经线性层和 softmax，得到下一个词的概率。']]
+];
+function footer(i,t){
+ line(80,758,1520,758,'#373e47',1);
+ const text=captions[i].filter(c=>c[0]<=t).at(-1)||captions[i][0];
+ type(text[1],82,820,25,'#d6dce5',450,'left',cn);
+ type(['单头示意 · 人工权重','原论文示例维度','原始 Post-LN 结构','2017 · Encoder–Decoder'][i],1518,818,17,'#959ea9',450,'right',cn);
+}
+function attention(t){
+ const entries=['小猫','坐在','垫子','上'],scores=['27.6%','16.7%','45.5%','10.2%'],weight=[.276,.167,.455,.102],colors=[[116,178,240],[162,188,249],[102,212,255],[149,161,208]];
+ const y0=206,dy=113,source=824,ex=1336,ey=416,flow=phase(t,1.35,4.35);
+ glow(1190,420,335,220,[37,112,198],.12);
+ for(let j=0;j<4;j++){
+  const y=y0+j*dy,approach=phase(t,.05+j*.15,.95+j*.15);g.save();g.globalAlpha*=.25+.75*approach;
+  type(entries[j],681,y+5,30,j===1?'#e9f3ff':'#d9e4ee',590,'left',cn);
+  type(scores[j],682,y+37,20,rgba(colors[j],.42+.55*flow),500);
+  const count=[25,15,40,10][j],span=8+weight[j]*45;
+  function pt(u,a){
+   const s=u*u*(3-2*u),bend=Math.sin(Math.PI*u);
+   return [source+(ex-source)*u+Math.sin(a*4)*bend*4,
+     mix(y,ey,s)+Math.sin(2*Math.PI*u+j*.59+t*.23)*bend*(j===2?29:16)+a*span*(1-.87*u)+Math.cos(a*2.4+u*5+t*.2)*bend*span*.85]
+  }
+  const front=.12+.88*phase(t,.72+j*.14,3.0+j*.14);
+  for(let k=0;k<count;k++){const a=(k/(count-1))*2-1,points=[];for(let p=0;p<=46;p++) points.push(pt(front*p/46,a));
+   curve(points,rgba(blend(colors[j],[223,244,255],.28*Math.pow(Math.sin(k*.87),2)),.12+.46*(1-Math.abs(a))+.10*Math.sin(k*1.7)**2),k%6===0?1.8:1)}
+  ellipse(source,y,6,span+2,rgba(colors[j],.85),1.3);
+  for(let k=0;k<4;k++){let u=(t*.13+k*.242+j*.11)%1;if(u>front)continue;const [x,yy]=pt(u,.5*Math.sin(k*3));disk(x,yy,1.8,rgba([202,242,255],.8))}
+  g.restore()
+ }
+ const on=.4+.6*phase(t,2.4,4.4);
+ glow(ex,ey,120,135,[80,168,255],.22*on);
+ for(let m=23;m>=0;m--){let f=m/23;ellipse(ex+f*20,ey,12+12*Math.sin(f*Math.PI),48+9*Math.sin(f*Math.PI),rgba(blend(blue,ice,1-f),.14+.32*(1-f)),1.2)}
+ line(ex+28,ey,1455,ey,rgba(ice,.72),1.6);disk(1456,ey,3,rgba(ice,.95));
+ type('坐在',1430,ey-50,31,'#d9efff',620,'center',cn);type('上下文表示',1420,ey+92,18,'#afbdcd',400,'center',cn);
+ type('V',source,671,21,'#a2b1c4',500,'center');type('Σ αⱼ Vⱼ',1368,671,21,'#c6d9ec',500,'center')
+}
+function feedforward(t){
+ const x0=696,span=794,cy=418,progress=.21+.79*phase(t,.3,2.6);
+ glow(1100,423,430,260,[113,69,199],.13);
+ function radius(u){const bell=Math.sin(Math.PI*u)**1.3;return 19+bell*(140+26*Math.sin(u*Math.PI))}
+ function vertex(u,a){
+  let twist=.58*Math.sin(u*TAU-.65)+.12*Math.sin(t*.25);
+  let r=radius(u),ang=a+twist;
+  return [x0+span*u+Math.cos(ang)*r*.28,cy+Math.sin(ang)*r+9*Math.sin(u*TAU-.8)]
+ }
+ const strands=125;
+ for(let k=0;k<strands;k++){
+  const angle=TAU*k/strands,frontness=(Math.cos(angle)+1)*.5,pts=[];
+  for(let n=0;n<=56;n++)pts.push(vertex(n*progress/56,angle));
+  const c=blend([107,76,186],[232,189,255],frontness*.85),bright=.13+.48*frontness**2;
+  curve(pts,rgba(c,bright*(.6+.4*Math.cos(angle*.5)**2)),k%11===0?1.8:1);
+ }
+ for(let z=0;z<29;z++){const u=z/28;if(u>progress)continue;const pts=[];for(let j=0;j<=80;j++)pts.push(vertex(u,TAU*j/80));curve(pts,rgba(z===14?[222,194,255]:[180,153,233],z===14?.7:.08),z===14?1.6:.8)}
+ const stream=(t*.20)%1;if(stream<progress){const p=[];for(let q=0;q<=70;q++)p.push(vertex(stream,TAU*q/70));curve(p,rgba([241,220,255],.78*Math.sin(Math.PI*stream)),2.0)}
+ for(const [x,num,label] of [[x0,'512','输入'],[x0+span*.5,'2048','隐层 · ReLU'],[x0+span,'512','输出']]){
+   const yd=x===x0+span*.5?607:462;line(x,yd,x,632,'#575063',1);disk(x,yd,2.2,'#a99ec2');
+   type(num,x,670,32,'#ede4ff',550,'center');type(label,x,703,16,'#bcb1ca',400,'center',cn);
+ }
+}
+function plate(cx,cy,wx,wy,c,t,label,topLabel){
+ const corners=[[cx-wx,cy-7],[cx+10,cy-wy],[cx+wx,cy+7],[cx-10,cy+wy]];
+ const bottom=corners.map(p=>[p[0],p[1]+12]);
+ polygon([corners[0],corners[3],bottom[3],bottom[0]],gradient(cx-wx,cy,cx,cy+wy,[[0,rgba(c,.13)],[1,'#26343b']]),rgba(c,.45));
+ polygon([corners[3],corners[2],bottom[2],bottom[3]],gradient(cx,cy,cx+wx,cy,[[0,rgba(c,.6)],[.75,rgba(c,.15)],[1,'#17232d']]),rgba(c,.62));
+ polygon(corners,gradient(cx-wx,cy-wy,cx+wx,cy+wy,[[0,'#1c2530'],[.34,'#263340'],[.60,rgba(blend(c,[26,33,43],.7),1)],[1,'#1a2632']]),rgba(c,.78),1.5);
+ function pp(a,b){return [corners[0][0]+a*(corners[1][0]-corners[0][0])+b*(corners[3][0]-corners[0][0]),corners[0][1]+a*(corners[1][1]-corners[0][1])+b*(corners[3][1]-corners[0][1])]}
+ for(let i=1;i<19;i++){let f=i/19;let A=pp(f,.06),B=pp(f,.94);line(...A,...B,rgba(c,.16),.8);let C=pp(.05,f),D=pp(.95,f);line(...C,...D,rgba(c,.075),.7)}
+ const boundary=[pp(.13,.14),pp(.85,.14),pp(.85,.87),pp(.13,.87)];polygon(boundary,null,rgba(c,.38),1.1);
+ const scan=.13+.72*((t*.18)%1);line(...pp(scan,.14),...pp(scan,.87),rgba(c,.62),1.8);
+ if(topLabel){g.save();g.translate(cx,cy);g.transform(1,.20,-.69,.72,0,0);type(topLabel,0,9,29,'#e0f5f5',600,'center');g.restore()}
+ const lx=1332;line(cx+wx+11,cy+6,lx-12,cy+6,rgba(c,.42));type(label,lx,cy+13,22,rgba(blend(c,[244,246,248],.5),1),520);
+}
+function block(t){
+ const cx=1040,settle=phase(t,.1,2.0);const gap=132+37*(1-settle)+7*Math.sin(t*.46),base=570;
+ const y1=base,y2=base-gap,y3=base-gap*2;
+ glow(cx,434,340,248,[68,147,159],.14);
+ function bypass(left,ybottom,ytop,active){
+   let p=[[cx-164,ybottom+20],[left+22,ybottom+44],[left,ybottom+33],[left,ytop+7],[cx-162,ytop+24]];
+   curve(p,rgba(mint,active?.82:.48),1.8);disk(left, mix(ybottom+32,ytop+7,(t*.29)%1),3,rgba(ice,.85))
+ }
+ bypass(722,y1,y2,true);bypass(748,y2,y3,false);
+ type('残差',706,483,18,'#accccb',400,'right',cn);
+ plate(cx,y1,208,50,blue,t,'输入表示','');
+ plate(cx,y2,208,50,ice,t+.4,'Add & Norm','Attention');
+ plate(cx,y3,208,50,mint,t+.9,'Add & Norm','FFN');
+ line(cx,y3-60,cx,y3-107,rgba(mint,.68),1.4);disk(cx,y3-108,3,'#c7f7e9');
+ type('传入下一层',cx,y3-126,18,'#b3c9d0',450,'center',cn)
+}
+/* Standalone scene 04. Virtual canvas: 1600 x 900. Local scene time: seconds. */
+function drawOverview(ctx, t) {
+  const time = Math.max(0, Number.isFinite(t) ? t : 0);
+  const blue = [133, 216, 255];
+  const gold = [245, 205, 160];
+  const pale = [231, 238, 247];
+  const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+  const ease = v => { v = clamp(v); return v * v * (3 - 2 * v); };
+  const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${clamp(a)})`;
+  const mix = (a, b, k) => a.map((v, i) => Math.round(v + (b[i] - v) * k));
+  const reveal = ease(time / 0.92);
+  const font = 'Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif';
+  const ex = 850, dx = 1274, busX = 1069;
+  const topY = 296 + Math.sin(time * 0.7) * 2.5 + (1 - reveal) * 15;
+  const bottomY = 536 + Math.sin(time * 0.7 + 0.45) * 2.5 + (1 - reveal) * 23;
+  const midY = 410 + Math.sin(time * 0.7 + 0.22) * 2.5 + (1 - reveal) * 18;
+  const decoderShift = Math.sin(time * 0.7 + 0.75) * 1.3;
+
+  function polygon(points, fill, stroke, lineWidth = 1) {
+    ctx.beginPath();
+    ctx.moveTo(points[0][0], points[0][1]);
+    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
+    ctx.closePath();
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lineWidth; ctx.stroke(); }
+  }
+
+  function roundedPolygon(points, radius) {
+    const count = points.length;
+    ctx.beginPath();
+    for (let i = 0; i < count; i++) {
+      const previous = points[(i + count - 1) % count];
+      const point = points[i], next = points[(i + 1) % count];
+      const beforeLength = Math.hypot(previous[0] - point[0], previous[1] - point[1]);
+      const afterLength = Math.hypot(next[0] - point[0], next[1] - point[1]);
+      const r = Math.min(radius, beforeLength * 0.25, afterLength * 0.25);
+      const before = [point[0] + (previous[0] - point[0]) * r / beforeLength,
+        point[1] + (previous[1] - point[1]) * r / beforeLength];
+      const after = [point[0] + (next[0] - point[0]) * r / afterLength,
+        point[1] + (next[1] - point[1]) * r / afterLength];
+      if (i === 0) ctx.moveTo(before[0], before[1]);
+      else ctx.lineTo(before[0], before[1]);
+      ctx.quadraticCurveTo(point[0], point[1], after[0], after[1]);
+    }
+    ctx.closePath();
+  }
+
+  function label(text, x, y, color, size = 18, weight = 500, align = 'center') {
+    ctx.save();
+    ctx.font = `${weight} ${size}px ${font}`;
+    ctx.textAlign = align;
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
+  function line(points, color, width = 1) {
+    ctx.beginPath();
+    ctx.moveTo(points[0][0], points[0][1]);
+    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  }
+
+  function glow(x, y, radius, color, alpha) {
+    const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    gradient.addColorStop(0, rgba(color, alpha));
+    gradient.addColorStop(0.3, rgba(color, alpha * 0.34));
+    gradient.addColorStop(1, rgba(color, 0));
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function dot(x, y, color, radius = 2.4, alpha = 1) {
+    glow(x, y, radius * 5.2, color, alpha * 0.25);
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = rgba(color, alpha);
+    ctx.fill();
+  }
+
+  function arrow(x, y, angle, color, size = 4.2) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    line([[-size, -size * 0.7], [0, 0], [-size, size * 0.7]], color, 1.25);
+    ctx.restore();
+  }
+
+  function roundRect(x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function pointAlongPolyline(points, progress) {
+    const lengths = [];
+    let total = 0;
+    for (let i = 1; i < points.length; i++) {
+      const length = Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
+      lengths.push(length); total += length;
+    }
+    let remaining = clamp(progress) * total;
+    for (let i = 0; i < lengths.length; i++) {
+      if (remaining <= lengths[i] || i === lengths.length - 1) {
+        const q = lengths[i] ? remaining / lengths[i] : 0;
+        return [points[i][0] + (points[i + 1][0] - points[i][0]) * q,
+          points[i][1] + (points[i + 1][1] - points[i][1]) * q];
+      }
+      remaining -= lengths[i];
+    }
+    return points[0];
+  }
+
+  function signal(points, color, phase = 0, speed = 0.19, alpha = 0.85) {
+    line(points, rgba(color, 0.18 * alpha), 1.1);
+    const progress = ((time * speed + phase) % 1 + 1) % 1;
+    const point = pointAlongPolyline(points, progress);
+    for (let j = 3; j >= 1; j--) {
+      const behind = pointAlongPolyline(points, Math.max(0, progress - j * 0.017));
+      dot(behind[0], behind[1], color, 1.1, alpha * 0.07 * (4 - j));
+    }
+    dot(point[0], point[1], color, 2.05, alpha);
+  }
+
+  function wafer(cx, cy, color, opacity, depth = 36, thickness = 8, width = 268) {
+    const left = cx - width / 2, right = cx + width / 2;
+    const top = cy - depth / 2, bottom = cy + depth / 2;
+    const points = [[left + 20, top], [right, top + 12], [right - 20, bottom], [left, bottom - 12]];
+    ctx.save();
+    ctx.globalAlpha *= opacity;
+    const side = ctx.createLinearGradient(0, top, 0, bottom + thickness);
+    side.addColorStop(0, rgba(color, 0.09));
+    side.addColorStop(1, 'rgba(7,10,14,0.94)');
+    polygon([points[1], points[2], [points[2][0], points[2][1] + thickness],
+      [points[1][0], points[1][1] + thickness]], side, rgba(color, 0.18));
+    polygon([points[2], points[3], [points[3][0], points[3][1] + thickness],
+      [points[2][0], points[2][1] + thickness]], 'rgba(12,16,23,0.92)', rgba(color, 0.25));
+    const topFill = ctx.createLinearGradient(left, top, right, bottom);
+    topFill.addColorStop(0, rgba(mix(color, [30, 37, 49], 0.74), 0.80));
+    topFill.addColorStop(0.45, 'rgba(16,21,30,0.90)');
+    topFill.addColorStop(1, rgba(mix(color, [24, 29, 39], 0.88), 0.85));
+    roundedPolygon(points, 6);
+    ctx.fillStyle = topFill;
+    ctx.fill();
+    ctx.strokeStyle = rgba(color, 0.34);
+    ctx.lineWidth = 0.9;
+    ctx.stroke();
+    line([[left + 25, top + 1], [right - 4, top + 12]], rgba(color, 0.38), 0.85);
+    line([[left + 7, bottom - 10 + thickness], [right - 25, bottom + thickness]], rgba(color, 0.13), 0.65);
+    ctx.restore();
+  }
+
+  function chip(cx, cy, color, decoder, opacity, phase) {
+    const width = 268, depth = 114, thickness = 12;
+    const left = cx - width / 2, right = cx + width / 2;
+    const top = cy - depth / 2, bottom = cy + depth / 2;
+    const surface = [[left + 20, top], [right, top + 15], [right - 20, bottom], [left, bottom - 15]];
+    ctx.save();
+    ctx.globalAlpha *= opacity;
+
+    // Only the tiny physical object carries a shadow; never blur the canvas.
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.72)';
+    ctx.shadowBlur = 24;
+    ctx.shadowOffsetY = 18;
+    polygon(surface.map(p => [p[0], p[1] + 8]), 'rgba(0,0,0,0.40)');
+    ctx.restore();
+
+    const face = ctx.createLinearGradient(left, bottom - 20, right, bottom + thickness);
+    face.addColorStop(0, rgba(mix(color, [12, 17, 25], 0.75), 0.90));
+    face.addColorStop(0.46, 'rgba(11,15,22,0.97)');
+    face.addColorStop(1, rgba(color, 0.16));
+    polygon([surface[2], surface[3], [surface[3][0], surface[3][1] + thickness],
+      [surface[2][0], surface[2][1] + thickness]], face, rgba(color, 0.28), 0.9);
+    polygon([surface[1], surface[2], [surface[2][0], surface[2][1] + thickness],
+      [surface[1][0], surface[1][1] + thickness]], 'rgba(18,22,28,0.94)', rgba(color, 0.22), 0.9);
+
+    const glass = ctx.createLinearGradient(left, top, right, bottom);
+    glass.addColorStop(0, rgba(mix(color, [38, 47, 58], 0.68), 0.98));
+    glass.addColorStop(0.20, 'rgba(23,29,39,0.96)');
+    glass.addColorStop(0.65, 'rgba(15,20,29,0.98)');
+    glass.addColorStop(1, rgba(mix(color, [24, 29, 37], 0.80), 0.95));
+    roundedPolygon(surface, 8);
+    ctx.fillStyle = glass;
+    ctx.fill();
+    ctx.lineWidth = 1.1;
+    ctx.strokeStyle = rgba(color, 0.53);
+    ctx.stroke();
+
+    // Micro traces and contact pads remain geometry, never illegible tiny text.
+    ctx.save();
+    roundedPolygon(surface, 8);
+    ctx.clip();
+    for (let j = 0; j < 8; j++) {
+      const px = left + 46 + j * 22;
+      line([[px, top + 8], [px + 7, top + 20], [px + 20, top + 21]], rgba(color, 0.085), 0.6);
+      line([[px - 4, bottom - 6], [px, bottom - 18], [px + 13, bottom - 18]], rgba(color, 0.065), 0.6);
+    }
+    for (let j = 0; j < 9; j++) {
+      ctx.fillStyle = rgba(color, 0.15 + 0.04 * Math.sin(j * 0.7));
+      ctx.fillRect(left + 33 + j * 21, bottom - 4 + (j * 0.77), 8, 1.5);
+    }
+    const sweep = 0.5 + 0.5 * Math.sin(time * 0.32 + phase);
+    const sx = left - 100 + sweep * 450;
+    const sheen = ctx.createLinearGradient(sx - 50, top, sx + 70, bottom);
+    sheen.addColorStop(0, 'rgba(255,255,255,0)');
+    sheen.addColorStop(0.5, 'rgba(225,240,255,0.055)');
+    sheen.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sheen;
+    ctx.fillRect(left, top, width, depth);
+    ctx.restore();
+
+    line([[left + 27, top + 1], [right - 8, top + 14]], rgba(pale, 0.42), 0.9);
+    line([[left + 6, bottom - 13 + thickness], [right - 25, bottom + thickness - 1]], rgba(color, 0.23), 1);
+
+    const rows = decoder
+      ? [{ text: 'Feed-forward', y: cy - 26, c: gold },
+        { text: 'Cross-attention', y: cy, c: mix(blue, gold, 0.25) },
+        { text: 'Masked self-attn', y: cy + 26, c: gold }]
+      : [{ text: 'Feed-forward', y: cy - 17, c: blue },
+        { text: 'Self-attention', y: cy + 17, c: blue }];
+    const railX = left + 43;
+    for (let j = 0; j < rows.length; j++) {
+      const row = rows[j];
+      const pulse = 0.60 + 0.19 * Math.sin(time * 1.45 + phase - j * 0.60);
+      if (j < rows.length - 1) {
+        line([[left + 62, (row.y + rows[j + 1].y) / 2],
+          [right - 34, (row.y + rows[j + 1].y) / 2]], rgba(color, 0.08), 0.65);
+      }
+      label(row.text, cx + 12, row.y, rgba(pale, decoder && j === 1 ? 0.97 : 0.88), 18, decoder && j === 1 ? 550 : 450);
+      dot(railX, row.y, row.c, 2.1, pulse);
+    }
+    line([[railX, rows[rows.length - 1].y], [railX, rows[0].y]], rgba(color, 0.25), 1);
+    arrow(railX, rows[0].y - 7, -Math.PI / 2, rgba(color, 0.62), 3.2);
+    if (decoder) {
+      line([[left + 10, cy], [railX - 7, cy]], rgba(blue, 0.56), 1.2);
+      dot(left + 10, cy, blue, 2.1, 0.82);
+    }
+    ctx.restore();
+  }
+
+  function tokenRow(cx, y, labels, color, firstWide) {
+    const widths = labels.map((_, i) => firstWide && i === 0 ? 60 : 42);
+    const total = widths.reduce((sum, w) => sum + w, 0) + (labels.length - 1) * 7;
+    let x = cx - total / 2;
+    for (let i = 0; i < labels.length; i++) {
+      const w = widths[i];
+      const brightness = 0.12 + 0.035 * Math.sin(time * 1.4 - i * 0.65);
+      roundRect(x, y, w, 32, 8);
+      ctx.fillStyle = rgba(color, brightness);
+      ctx.fill();
+      ctx.strokeStyle = rgba(color, 0.28);
+      ctx.lineWidth = 0.9;
+      ctx.stroke();
+      label(labels[i], x + w / 2, y + 16, rgba(color, 0.93), 18, 450);
+      x += w + 7;
+    }
+  }
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(640, 130, 870, 565);
+  ctx.clip();
+  ctx.globalAlpha *= reveal;
+
+  // Fixed seed and closed-form motion make the frame independent of playback history.
+  let seed = 421337;
+  function random() {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  }
+  for (let i = 0; i < 25; i++) {
+    const baseX = 680 + random() * 795;
+    const baseY = 180 + random() * 440;
+    const phase = random() * Math.PI * 2;
+    const radius = 0.55 + random() * 0.8;
+    const alpha = 0.05 + random() * 0.09;
+    const color = baseX < 1060 ? blue : gold;
+    ctx.fillStyle = rgba(color, alpha);
+    ctx.beginPath();
+    ctx.arc(baseX + Math.sin(time * 0.13 + phase) * 4,
+      baseY + Math.cos(time * 0.16 + phase) * 3, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  glow(ex, 440, 230, blue, 0.045);
+  glow(dx, 440, 230, gold, 0.040);
+
+  label('ENCODER', ex - 25, 153, rgba(blue, 0.91), 20, 550);
+  label('× N', ex + 78, 153, rgba(pale, 0.43), 18, 400);
+  label('DECODER', dx - 26, 153, rgba(gold, 0.94), 20, 550);
+  label('× N', dx + 80, 153, rgba(pale, 0.43), 18, 400);
+
+  // Residual block-to-block flow travels upwards in both columns.
+  for (const [cx, color, shift] of [[ex, blue, 0], [dx, gold, decoderShift]]) {
+    signal([[cx, 640], [cx, bottomY + 63 + shift]], color, cx === ex ? 0.08 : 0.38, 0.27, 0.80);
+    arrow(cx, bottomY + 65 + shift, -Math.PI / 2, rgba(color, 0.58));
+    signal([[cx, bottomY - 58 + shift], [cx, midY + 36 + shift]], color, 0.41, 0.28, 0.62);
+    signal([[cx, midY - 30 + shift], [cx, topY + 67 + shift]], color, 0.17, 0.26, 0.66);
+  }
+
+  // Only the final encoder representation becomes memory; every decoder layer reads it.
+  const memoryTop = 202;
+  const memoryRoute = [[ex, topY - 58], [ex, memoryTop], [busX, memoryTop], [busX, bottomY + decoderShift]];
+  signal(memoryRoute, blue, 0.09, 0.125, 0.86);
+  label('K / V', busX, 177, rgba(blue, 0.93), 19, 550);
+  for (const [cy, phase, a] of [[topY + decoderShift, 0.23, 0.95],
+    [midY + decoderShift, 0.56, 0.34], [bottomY + decoderShift, 0.78, 0.73]]) {
+    const branch = [[busX, cy], [dx - 124, cy]];
+    signal(branch, blue, phase, 0.24, a);
+    dot(busX, cy, blue, 2, a * 0.65);
+    arrow(dx - 128, cy, 0, rgba(blue, a * 0.70), 3.6);
+  }
+
+  // A few thin, repeating layers suggest depth without turning the view into a diagram panel.
+  for (const [cx, color, shift] of [[ex, blue, 0], [dx, gold, decoderShift]]) {
+    wafer(cx + 2, midY + 14 + shift, color, 0.43, 35, 8, 264);
+    wafer(cx, midY - 4 + shift, color, 0.57, 35, 8, 268);
+    label('···', cx, midY - 5 + shift, rgba(color, 0.55), 23, 450);
+  }
+
+  chip(ex, bottomY, blue, false, 0.76, 0.7);
+  chip(dx, bottomY + decoderShift, gold, true, 0.80, 1.1);
+  chip(ex, topY, blue, false, 1.0, 0.0);
+  chip(dx, topY + decoderShift, gold, true, 1.0, 0.4);
+
+  // A query is made by the decoder's masked self-attention, not by the encoder.
+  // The subtle inner rail already rises from Masked self -> Cross -> FFN.
+  label('Q', dx - 99, topY + decoderShift + 13, rgba(gold, 0.86), 18, 550);
+
+  const headY = 197;
+  signal([[dx, topY - 58 + decoderShift], [dx, headY + 18]], gold, 0.52, 0.24, 0.82);
+  arrow(dx, headY + 21, -Math.PI / 2, rgba(gold, 0.62), 3.8);
+  roundRect(dx - 100, headY - 17, 200, 34, 10);
+  ctx.fillStyle = 'rgba(24,24,28,0.93)';
+  ctx.fill();
+  ctx.strokeStyle = rgba(gold, 0.27);
+  ctx.lineWidth = 0.9;
+  ctx.stroke();
+  label('Linear · Softmax', dx, headY, rgba(gold, 0.89), 18, 500);
+  signal([[dx + 101, headY], [1442, headY]], gold, 0.36, 0.29, 0.84);
+  arrow(1434, headY, 0, rgba(gold, 0.65), 3.6);
+  glow(1458, headY, 29, gold, 0.12 + 0.025 * Math.sin(time * 1.5));
+  roundRect(1442, headY - 17, 41, 34, 9);
+  ctx.fillStyle = rgba(gold, 0.15);
+  ctx.fill();
+  ctx.strokeStyle = rgba(gold, 0.46);
+  ctx.stroke();
+  label('yₜ', 1462.5, headY, rgba(gold, 0.98), 20, 550);
+
+  tokenRow(ex, 638, ['x₁', 'x₂', 'x₃'], blue, false);
+  tokenRow(dx, 638, ['BOS', 'y₁', 'y₂'], gold, true);
+  label('源序列', ex, 684, rgba(pale, 0.56), 18, 400);
+  label('目标序列 · 右移', dx, 684, rgba(pale, 0.59), 18, 400);
+
+  ctx.restore();
+}
+
+function frameToScene(f){const s=f/30;return s<10?0:s<19?1:s<28?2:3}
+function scene(i,t){g.save();editorial(i,t);if(i===0)attention(t);else if(i===1)feedforward(t);else if(i===2)block(t);else drawOverview(g,t);g.restore()}
+const scrub=document.getElementById('scrub'),clock=document.getElementById('clock'),select=document.getElementById('chapters'),play=document.getElementById('play');
+let frame=0,playing=false,origin=0,raf=0,previousDraw=-1;
+function render(f){
+ frame=clamp(Math.round(f),0,1079);let i=frameToScene(frame),t=frame/30-sections[i];
+ g.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
+ bg(scenes[i].accent,t);header(i);
+ const transition=.50,fade=phase(t,0,transition);
+ if(i>0&&t<transition){g.save();g.globalAlpha=1-fade;g.translate(-26*fade,0);scene(i-1,sections[i]-sections[i-1]);g.restore();g.save();g.globalAlpha=fade;g.translate(30*(1-fade),0);scene(i,t);g.restore()}else scene(i,t);
+ footer(i,t);scrub.value=frame;clock.textContent='0:'+String(Math.floor(frame/30)).padStart(2,'0')+' / 0:36';select.value=String(sections[i]*30);previousDraw=frame;
+}
+function tick(now){if(!playing)return;const target=Math.floor((now-origin)*.03);if(target>=1080){render(1079);setPlay(false);return}if(target!==previousDraw)render(target);raf=requestAnimationFrame(tick)}
+function setPlay(on){playing=on;cancelAnimationFrame(raf);play.textContent=on?'暂停':'播放';if(on){if(frame>=1079)frame=0;origin=performance.now()-frame/0.03;raf=requestAnimationFrame(tick)}}
+function setSize(){const dpr=exporting?1:Math.min(1.7,window.devicePixelRatio||1);const w=Math.max(1,Math.round(canvas.getBoundingClientRect().width*dpr));canvas.width=w;canvas.height=Math.round(w*9/16);render(frame)}
+window.seekFrame=(n)=>{setPlay(false);render(n);return frame};
+scrub.oninput=()=>window.seekFrame(+scrub.value);
+select.onchange=()=>{const was=playing;window.seekFrame(+select.value+21);if(was)setPlay(true)};
+play.onclick=()=>setPlay(!playing);document.getElementById('full').onclick=async()=>{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen()};
+document.addEventListener('keydown',e=>{if(e.target.matches('input,select,button'))return;if(e.code==='Space'){e.preventDefault();setPlay(!playing)}if(e.code==='ArrowRight')window.seekFrame(frame+30);if(e.code==='ArrowLeft')window.seekFrame(frame-30)});
+window.addEventListener('resize',setSize);setSize();if(!exporting&&!matchMedia('(prefers-reduced-motion: reduce)').matches)setPlay(true);
+</script></body></html>

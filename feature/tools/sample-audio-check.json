@@ -1,0 +1,20 @@
+{
+  "duration": 6,
+  "sampleRate": 48000,
+  "channels": 2,
+  "sampleFrames": 288000,
+  "rms": 0.0367486320351915,
+  "peak": 0.1632700115442276,
+  "lastHalfSecondRms": 0.03340261149733231,
+  "bestCorrelation": 0.9977370578624932,
+  "bestLagSamples": 0,
+  "bestLagMilliseconds": 0,
+  "zeroLagCorrelation": 0.9977370578624932,
+  "chapterSync": [
+    {
+      "id": "opening",
+      "time": 0.5,
+      "correlation": 0.9977842736913137
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "format": "H.264/AVC in MP4",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "frames": 1080,
+  "duration": 36,
+  "audio": false,
+  "sourceCanvas": {
+    "width": 1920,
+    "height": 1080
+  },
+  "encoderPreference": "prefer-hardware",
+  "colorSpace": {
+    "fullRange": true,
+    "matrix": "bt709",
+    "primaries": "bt709",
+    "transfer": "iec61966-2-1"
+  },
+  "bytes": 14165886,
+  "browserVerification": {
+    "width": 1920,
+    "height": 1080,
+    "duration": 36,
+    "decodedSeek": 14.9
+  },
+  "elapsedSeconds": 26.23
+}

@@ -1,0 +1,51 @@
+{
+  "pageErrors": [],
+  "checks": [
+    {
+      "check": "pause",
+      "frame": 14,
+      "passed": true
+    },
+    {
+      "check": "play",
+      "from": 14,
+      "to": 21,
+      "passed": true
+    },
+    {
+      "check": "drag",
+      "frame": 684,
+      "passed": true
+    },
+    {
+      "check": "chapter",
+      "chapter": 0,
+      "frame": 21,
+      "passed": true
+    },
+    {
+      "check": "chapter",
+      "chapter": 300,
+      "frame": 321,
+      "passed": true
+    },
+    {
+      "check": "chapter",
+      "chapter": 570,
+      "frame": 591,
+      "passed": true
+    },
+    {
+      "check": "chapter",
+      "chapter": 840,
+      "frame": 861,
+      "passed": true
+    },
+    {
+      "check": "last scene",
+      "frame": 1079,
+      "clock": "0:35 / 0:36",
+      "passed": true
+    }
+  ]
+}

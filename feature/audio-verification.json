@@ -1,0 +1,115 @@
+{
+  "duration": 240,
+  "sampleRate": 48000,
+  "channels": 2,
+  "sampleFrames": 11520000,
+  "rms": 0.048113770854786825,
+  "peak": 0.3975922465324402,
+  "lastHalfSecondRms": 0.00033924390156238863,
+  "bestCorrelation": 0.998227025930313,
+  "bestLagSamples": 0,
+  "bestLagMilliseconds": 0,
+  "zeroLagCorrelation": 0.998227025930313,
+  "chapterSync": [
+    {
+      "id": "opening",
+      "time": 0.5,
+      "correlation": 0.9977842736913137
+    },
+    {
+      "id": "tokens",
+      "time": 8.5,
+      "correlation": 0.9973884202000014
+    },
+    {
+      "id": "qkv",
+      "time": 15.5,
+      "correlation": 0.9974485489388938
+    },
+    {
+      "id": "dotlab",
+      "time": 25.5,
+      "correlation": 0.9979453466694704
+    },
+    {
+      "id": "scores",
+      "time": 37.5,
+      "correlation": 0.998860668111029
+    },
+    {
+      "id": "matrixlab",
+      "time": 46.5,
+      "correlation": 0.9989532741275915
+    },
+    {
+      "id": "gather",
+      "time": 60.5,
+      "correlation": 0.998554055893456
+    },
+    {
+      "id": "headlab",
+      "time": 70.5,
+      "correlation": 0.9954355979900822
+    },
+    {
+      "id": "rope",
+      "time": 85.5,
+      "correlation": 0.9987164233621649
+    },
+    {
+      "id": "flash",
+      "time": 99.5,
+      "correlation": 0.9982756901961104
+    },
+    {
+      "id": "linear",
+      "time": 115.5,
+      "correlation": 0.9978871444580214
+    },
+    {
+      "id": "expand",
+      "time": 133.5,
+      "correlation": 0.9983321261914332
+    },
+    {
+      "id": "gate",
+      "time": 143.5,
+      "correlation": 0.9986579258091369
+    },
+    {
+      "id": "block",
+      "time": 152.5,
+      "correlation": 0.9987173585973373
+    },
+    {
+      "id": "memory",
+      "time": 164.5,
+      "correlation": 0.9989779982677843
+    },
+    {
+      "id": "mask",
+      "time": 177.5,
+      "correlation": 0.9988197866738047
+    },
+    {
+      "id": "output",
+      "time": 189.5,
+      "correlation": 0.9906710976742531
+    },
+    {
+      "id": "cache",
+      "time": 202.5,
+      "correlation": 0.9991536393530559
+    },
+    {
+      "id": "gqa",
+      "time": 220.5,
+      "correlation": 0.9941918212120199
+    },
+    {
+      "id": "end",
+      "time": 234.5,
+      "correlation": 0.9992062707817951
+    }
+  ]
+}

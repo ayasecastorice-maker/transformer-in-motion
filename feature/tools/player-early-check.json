@@ -1,0 +1,89 @@
+{
+  "complete": false,
+  "states": {
+    "initial": {
+      "frame": 0,
+      "play": "播放",
+      "clock": "0:00 / 2:30",
+      "audioTime": 0,
+      "audioPaused": true,
+      "audioMuted": false,
+      "audioDuration": 150,
+      "sound": "声音开",
+      "chapter": "0"
+    },
+    "playing": {
+      "frame": 12,
+      "play": "暂停",
+      "clock": "0:00 / 2:30",
+      "audioTime": 0.443591,
+      "audioPaused": false,
+      "audioMuted": false,
+      "audioDuration": 150,
+      "sound": "声音开",
+      "chapter": "0"
+    },
+    "paused": {
+      "frame": 14,
+      "play": "播放",
+      "clock": "0:00 / 2:30",
+      "audioTime": 0.483156,
+      "audioPaused": true,
+      "audioMuted": false,
+      "audioDuration": 150,
+      "sound": "声音开",
+      "chapter": "0"
+    },
+    "scrubbed": {
+      "frame": 900,
+      "play": "播放",
+      "clock": "0:30 / 2:30",
+      "audioTime": 30,
+      "audioPaused": true,
+      "audioMuted": false,
+      "audioDuration": 150,
+      "sound": "声音开",
+      "chapter": "2"
+    },
+    "muted": {
+      "frame": 906,
+      "play": "暂停",
+      "clock": "0:30 / 2:30",
+      "audioTime": 30.242181,
+      "audioPaused": false,
+      "audioMuted": true,
+      "audioDuration": 150,
+      "sound": "声音关",
+      "chapter": "2"
+    },
+    "unmuted": {
+      "frame": 908,
+      "play": "暂停",
+      "clock": "0:30 / 2:30",
+      "audioTime": 30.273285,
+      "audioPaused": false,
+      "audioMuted": false,
+      "audioDuration": 150,
+      "sound": "声音开",
+      "chapter": "2"
+    },
+    "chapter": {
+      "frame": 1121,
+      "play": "暂停",
+      "clock": "0:37 / 2:30",
+      "audioTime": 37.394664,
+      "audioPaused": false,
+      "audioMuted": false,
+      "audioDuration": 150,
+      "sound": "声音开",
+      "chapter": "3"
+    }
+  },
+  "pageErrors": [],
+  "failedRequests": [
+    {
+      "url": "score.wav",
+      "error": "net::ERR_ABORTED"
+    }
+  ]
+}

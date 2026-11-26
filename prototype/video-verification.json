@@ -1,0 +1,31 @@
+{
+  "file": "transformer-in-motion.mp4",
+  "decodedFrames": [
+    {
+      "frame": 192,
+      "timestamp": 6.401666,
+      "file": "frames/video-0192.png"
+    },
+    {
+      "frame": 447,
+      "timestamp": 14.901666,
+      "file": "frames/video-0447.png"
+    },
+    {
+      "frame": 750,
+      "timestamp": 25.001666,
+      "file": "frames/video-0750.png"
+    },
+    {
+      "frame": 1005,
+      "timestamp": 33.501666,
+      "file": "frames/video-1005.png"
+    }
+  ],
+  "errors": [],
+  "metadata": {
+    "width": 1920,
+    "height": 1080,
+    "duration": 36
+  }
+}

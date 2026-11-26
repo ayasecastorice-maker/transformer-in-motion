@@ -1,0 +1,97 @@
+{
+  "format": "MP4 / H.264 High + AAC-LC",
+  "width": 2560,
+  "height": 1440,
+  "fps": 60,
+  "frames": 360,
+  "duration": 6,
+  "bytes": 285516,
+  "encoder": {
+    "width": 2560,
+    "height": 1440,
+    "framerate": 60,
+    "bitrate": 25000000,
+    "latencyMode": "realtime",
+    "avc": {
+      "format": "avc"
+    },
+    "codec": "avc1.640033",
+    "hardwareAcceleration": "prefer-software"
+  },
+  "sps": {
+    "profile": 100,
+    "level": 51
+  },
+  "sourceCanvas": {
+    "width": 2560,
+    "height": 1440
+  },
+  "timingCheckpoints": [
+    {
+      "frame": 0,
+      "timestampUs": 0
+    },
+    {
+      "frame": 1,
+      "timestampUs": 16667
+    },
+    {
+      "frame": 2,
+      "timestampUs": 33333
+    },
+    {
+      "frame": 3,
+      "timestampUs": 50000
+    },
+    {
+      "frame": 359,
+      "timestampUs": 5983333
+    }
+  ],
+  "colorSpace": {
+    "fullRange": false,
+    "matrix": "bt709",
+    "primaries": "bt709",
+    "transfer": "iec61966-2-1"
+  },
+  "audio": {
+    "codec": "mp4a.40.2",
+    "sampleRate": 48000,
+    "channels": 2,
+    "packets": 282,
+    "firstTimestampUs": 0,
+    "score": {
+      "peak": 0.16223378479480743,
+      "rms": 0.03767183493363902
+    }
+  },
+  "index": {
+    "duration": 6,
+    "video": {
+      "frames": 360,
+      "fps": 60,
+      "constantFrameDuration": 1500,
+      "mediaTimescale": 90000,
+      "width": 2560,
+      "height": 1440
+    },
+    "audio": {
+      "packets": 282,
+      "sampleRate": 48000,
+      "durationPerPacket": 1024,
+      "bytes": 121334
+    }
+  },
+  "browser": {
+    "width": 2560,
+    "height": 1440,
+    "duration": 6,
+    "decodedSeek": 1.1,
+    "audioDuration": 6,
+    "audioChannels": 2,
+    "audioSampleRate": 48000,
+    "decodedAudioRms": 0.042039947023037184
+  },
+  "pageErrors": [],
+  "elapsedSeconds": 5.741
+}
